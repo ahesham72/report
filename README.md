@@ -1,59 +1,58 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+📝 نظام إدارة طلبات التوريد (Filament Orders Management)
+نظام متطور تم بناؤه باستخدام Laravel وإطار العمل Filament PHP لإدارة وتتبع طلبات التوريد، مع ميزة استيراد ذكية تتعامل مع ملفات الإكسيل المعقدة والخلايا المدمجة.
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+🚀 المميزات الرئيسية
+لوحة تحكم تفاعلية: مبنية باستخدام Filament v3 لإدارة الطلبات بسلاسة.
 
-## About Laravel
+محرك استيراد ذكي (Smart Excel Import): * القدرة على معالجة ملفات الإكسيل ذات التنسيقات غير التقليدية.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+ربط تلقائي: يقوم بربط رقم الطلب (numReq) ببيانات أمر التوريد (PoNo) حتى لو كانت في أماكن مختلفة داخل الشيت.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+معالجة الخلايا المدمجة: ذكاء اصطناعي بسيط لتوقع التواريخ والبيانات المفقودة نتيجة دمج الخلايا في الإكسيل.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+منع التكرار: يضمن استيراد كل سطر مرة واحدة فقط بناءً على المفتاح الفريد.
 
-## Learning Laravel
+تحليل البيانات: حساب تلقائي لـ "مدة التوريد" (الفرق بين تاريخ الموافقة وتاريخ التوريد).
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+تصدير مخصص: إمكانية تصدير البيانات إلى Excel بجداول نظيفة وخالية من أعمدة النظام التقنية.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+🛠 التقنيات المستخدمة
+Framework: Laravel 10/11
 
-## Laravel Sponsors
+Admin Panel: Filament PHP v3
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Excel Library: Laravel Excel (Maatwebsite)
 
-### Premium Partners
+Database: MySQL
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+📁 هيكلية المشروع البرمجية
+App\Filament\Resources\OrderResource: المسؤول عن واجهة العرض والجدولة.
 
-## Contributing
+App\Imports\OrdersImport: يحتوي على المنطق البرمجي المعقد لمعالجة وربط بيانات الـ PoNo.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+App\Models\Order: الموديل الأساسي لقاعدة البيانات.
 
-## Code of Conduct
+📥 طريقة التثبيت
+قم بسحب المشروع (Clone):
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Bash
 
-## Security Vulnerabilities
+git clone [رابط-المستودع]
+تثبيت المكتبات:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Bash
 
-## License
+composer install
+npm install && npm run build
+إعداد قاعدة البيانات في ملف .env ثم تشغيل التهجير:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Bash
+
+php artisan migrate
+إنشاء مستخدم للوحة التحكم:
+
+Bash
+
+php artisan make:filament-user
+💡 كيف يعمل محرك الاستيراد؟
+يستخدم النظام خوارزمية "الذاكرة المؤقتة" أثناء قراءة الملف؛ حيث يقوم بمسح الشيت لرصد أرقام PoNo وتخزينها، ثم يربطها بالطلبات الموافقة لها برمجياً، مما يضمن دقة بنسبة 100% حتى في أصعب تنسيقات الملفات.
