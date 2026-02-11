@@ -11,7 +11,7 @@ class Order extends Model
         'order_no',
         'order_date',
         'approval_date',
-        'po_no',
-        'po_date',
+        'رقم_أمر_التوريد', // تم التعديل حسب طلبك
+        'تاريخ_أمر_التوريد', // تم التعديل حسب طلبك
     ];
 }

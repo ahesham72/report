@@ -4,51 +4,94 @@ namespace App\Imports;
 
 use App\Models\Order;
 use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\WithStartRow;
 use Carbon\Carbon;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
-class OrdersImport implements ToModel
+class OrdersImport implements ToModel, WithStartRow
 {
-    private $poMap = [];
-    private $adminCode = 'N/A';
-    private $lastValidDateA = null;
-    private $lastValidDateB = null;
+    private ?string $currentDepartmentCode = null;
+    private ?string $currentOrderNo = null;
+    private bool $isHeaderRow = false;
+    private array $importedOrders = [];
+
+    public function startRow(): int
+    {
+        return 1;
+    }
 
     public function model(array $row)
     {
-        // 1. تنظيف البيانات
-        $colA = $row[0] ?? null;
-        $colB = $row[1] ?? null;
-        $colC = trim((string)($row[2] ?? ''));
-        $colD = strtolower(trim((string)($row[3] ?? '')));
-        $colE = trim((string)($row[4] ?? ''));
-        $colF = trim((string)($row[5] ?? ''));
+        $col20 = $row[20] ?? null; // تاريخ الطلب
+        $col25 = $row[25] ?? null; // كود الإدارة أو رقم الطلب
+        $col29 = $row[29] ?? null; // مؤشر نوع الصف
+        $col12 = $row[12] ?? null; // تاريخ الموافقة
 
-        // 2. تحديث التواريخ الاحتياطية (لحل مشكلة الخلايا المدمجة)
-        if ($this->isAnyDate($colA)) $this->lastValidDateA = $colA;
-        if ($this->isAnyDate($colB)) $this->lastValidDateB = $colB;
+        $col25 = $this->cleanValue($col25);
+        $col29 = $this->cleanValue($col29);
 
-        // 3. التقاط كود الإدارة والـ PoNo
-        if ($colD === 'code' && !empty($colC)) {
-            $this->adminCode = $colC;
-        }
-        if (!empty($colF) && is_numeric($colF) && !empty($colE)) {
-            $this->poMap[$colF] = $colE;
+        // 1. التعرف على كود الإدارة
+        if ($col29 === 'كود الإدارة' && !empty($col25)) {
+            $this->currentDepartmentCode = $this->formatNumber($col25);
+            $this->isHeaderRow = false;
+            return null;
         }
 
-        // 4. التنفيذ عند وجود رقم طلب (numReq)
-        if (!empty($colC) && is_numeric($colC) && $colD !== 'code') {
+        // 2. التعرف على رقم الطلب
+        if ($col29 === 'رقم الطلب' && !empty($col25)) {
+            $this->currentOrderNo = $this->formatNumber($col25);
+            $this->isHeaderRow = true;
+            return null;
+        }
 
-            // محاولة جلب التاريخ الحالي، وإذا فشل نأخذ آخر تاريخ صالح تم رصده فوقه
-            $dateA = $this->forceConvertDate($colA ?: $this->lastValidDateA);
-            $dateB = $this->forceConvertDate($colB ?: $this->lastValidDateB);
+        // 3. تخطي صف الهيدر
+        if ($this->isHeaderRow) {
+            $this->isHeaderRow = false;
+            return null;
+        }
+
+        // 4. صف بيانات - نستخرج التواريخ
+        if ($this->currentDepartmentCode && $this->currentOrderNo) {
+
+            $orderDate = $this->parseDate($col20);
+            $approvalDate = $this->parseDate($col12);
+
+            if (!$orderDate && !$approvalDate) {
+                return null;
+            }
+
+            $orderKey = $this->currentDepartmentCode . '_' . $this->currentOrderNo;
+
+            // لو الطلب اتاستورد قبل كده، نتخطاه
+            if (isset($this->importedOrders[$orderKey])) {
+                return null;
+            }
+
+            // نتحقق من قاعدة البيانات
+            $existingOrder = Order::where('order_no', $this->currentOrderNo)
+                ->where('department_name', $this->currentDepartmentCode)
+                ->first();
+
+            if ($existingOrder) {
+                if ($orderDate && !$existingOrder->order_date) {
+                    $existingOrder->order_date = $orderDate;
+                    $existingOrder->save();
+                }
+                if ($approvalDate && !$existingOrder->approval_date) {
+                    $existingOrder->approval_date = $approvalDate;
+                    $existingOrder->save();
+                }
+                $this->importedOrders[$orderKey] = true;
+                return null;
+            }
+
+            $this->importedOrders[$orderKey] = true;
 
             return new Order([
-                'department_name' => $this->adminCode,
-                'order_no'        => $colC,
-                'order_date'      => $dateB ?: $dateA,
-                'approval_date'   => $dateA ?: $dateB,
-                'po_no'           => $this->poMap[$colC] ?? null,
+                'department_name' => $this->currentDepartmentCode,
+                'order_no'        => $this->currentOrderNo,
+                'order_date'      => $orderDate,
+                'approval_date'   => $approvalDate,
+                'po_no'           => null,
                 'po_date'         => null,
             ]);
         }
@@ -56,28 +99,41 @@ class OrdersImport implements ToModel
         return null;
     }
 
-    private function isAnyDate($value) {
-        if (!$value) return false;
-        return is_numeric($value) || preg_match('/\d/', (string)$value);
+    private function cleanValue($value): ?string
+    {
+        if (is_null($value)) return null;
+        $value = trim((string) $value);
+        $value = rtrim($value, ':');
+        $value = rtrim($value, ' :');
+        return $value;
     }
 
-    private function forceConvertDate($value) {
-        if (!$value) return null;
+    private function formatNumber($value): string
+    {
+        if (is_numeric($value)) {
+            return (string) intval($value);
+        }
+        return (string) $value;
+    }
+
+    private function parseDate($value): ?string
+    {
+        if (empty($value)) return null;
 
         try {
-            // الحالة 1: رقم إكسيل
-            if (is_numeric($value) && $value > 40000) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject($value))->format('Y-m-d');
+            if ($value instanceof \DateTimeInterface) {
+                return Carbon::instance($value)->format('Y-m-d');
             }
 
-            // الحالة 2: نص يحتوي على تاريخ (مثل 01/01/2024 أو 2024-01-01)
-            $clean = str_replace(['/', '.', ' '], '-', trim((string)$value));
-            if (preg_match('/\d{1,4}-\d{1,2}-\d{1,4}/', $clean)) {
-                return Carbon::parse($clean)->format('Y-m-d');
+            if (is_numeric($value) && $value > 1) {
+                return Carbon::createFromTimestamp(($value - 25569) * 86400)->format('Y-m-d');
             }
+
+            $value = trim((string) $value);
+            return Carbon::parse($value)->format('Y-m-d');
+
         } catch (\Exception $e) {
             return null;
         }
-        return null;
     }
 }
